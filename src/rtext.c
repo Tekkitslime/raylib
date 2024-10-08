@@ -1254,6 +1254,76 @@ void DrawTextCodepoints(Font font, const int *codepoints, int codepointCount, Ve
     }
 }
 
+// Draw text with string length (using default font)
+// NOTE: same notes as DrawText
+void DrawTextLen(const char *text, int length, int posX, int posY, int fontSize, Color color)
+{
+    // Check if default font has been loaded
+    if (GetFontDefault().texture.id != 0)
+    {
+        Vector2 position = { (float)posX, (float)posY };
+
+        int defaultFontSize = 10;   // Default Font chars height in pixel
+        if (fontSize < defaultFontSize) fontSize = defaultFontSize;
+        int spacing = fontSize/defaultFontSize;
+
+        DrawTextLenEx(GetFontDefault(), text, length, position, (float)fontSize, (float)spacing, color);
+    }
+}
+
+// Draw text using Font with string length
+// NOTE: same notes as DrawTextEx
+void DrawTextLenEx(Font font, const char *text, int length, Vector2 position, float fontSize, float spacing, Color tint)
+{
+    if (font.texture.id == 0) font = GetFontDefault();  // Security check in case of not valid font
+
+    float textOffsetY = 0;          // Offset between lines (on linebreak '\n')
+    float textOffsetX = 0.0f;       // Offset X to next character to draw
+
+    float scaleFactor = fontSize/font.baseSize;         // Character quad scaling factor
+
+    for (int i = 0; i < length;)
+    {
+        // Get next codepoint from byte string and glyph index in font
+        int codepointByteCount = 0;
+        int codepoint = GetCodepointNext(&text[i], &codepointByteCount);
+        int index = GetGlyphIndex(font, codepoint);
+
+        if (codepoint == '\n')
+        {
+            // NOTE: Line spacing is a global variable, use SetTextLineSpacing() to setup
+            textOffsetY += (fontSize + textLineSpacing);
+            textOffsetX = 0.0f;
+        }
+        else
+        {
+            if ((codepoint != ' ') && (codepoint != '\t'))
+            {
+                DrawTextCodepoint(font, codepoint, (Vector2){ position.x + textOffsetX, position.y + textOffsetY }, fontSize, tint);
+            }
+
+            if (font.glyphs[index].advanceX == 0) textOffsetX += ((float)font.recs[index].width*scaleFactor + spacing);
+            else textOffsetX += ((float)font.glyphs[index].advanceX*scaleFactor + spacing);
+        }
+
+        i += codepointByteCount;   // Move text bytes counter to next codepoint
+    }
+}
+
+// Draw text using Font, pro parameters and string length (rotation)
+void DrawTextLenPro(Font font, const char *text, int length, Vector2 position, Vector2 origin, float rotation, float fontSize, float spacing, Color tint)
+{
+    rlPushMatrix();
+
+        rlTranslatef(position.x, position.y, 0.0f);
+        rlRotatef(rotation, 0.0f, 0.0f, 1.0f);
+        rlTranslatef(-origin.x, -origin.y, 0.0f);
+
+        DrawTextLenEx(font, text, length, (Vector2){ 0.0f, 0.0f }, fontSize, spacing, tint);
+
+    rlPopMatrix();
+}
+
 // Set vertical line spacing when drawing with line-breaks
 void SetTextLineSpacing(int spacing)
 {
